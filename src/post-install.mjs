@@ -84,6 +84,14 @@ async function install({os, arch, version, installPath}) {
 }
 
 
+function cleanVer(version) {
+    const m = /-[0-9]+/;
+    if (m) {
+        return version.substring(0, m.index);
+    }
+    return version;
+}
+
 install({os: process.platform, arch: process.arch, version: info.version}).catch(err => {
     console.error(err);
     process.exit(1);
