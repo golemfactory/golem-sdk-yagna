@@ -9,22 +9,21 @@ import {fileURLToPath} from 'url';
 import cproc from 'child_process';
 
 const isWin = process.platform === 'win32'
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function repoPath({os, arch, version}) {
     const ext = os == 'windows' ? '.zip' : '.tar.gz';
     const selector = arch == 'x64' ? os : `${os}_${arch}`;
 
-    return `https://github.com/golemfactory/yagna/releases/download/v0.12.0/golem-requestor-${selector}-v${version}${ext}`;
+    return `https://github.com/golemfactory/yagna/releases/download/v${version}/golem-requestor-${selector}-v${version}${ext}`;
 }
 
-async function link({depBin, name}) {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    let localBin = path.resolve(path.join(__dirname, '..', 'bin', name))
+async function link({binPath, name}) {
+    const exe_name = isWin ? `${name}.exe` : name;
 
-    if (isWin) {
-        localBin += '.exe'
-    }
+    let localBin = path.resolve(path.join(__dirname, '..', 'bin', exe_name))
+    let depBin = path.join(binPath, exe_name);
 
     if (!fs.existsSync(depBin)) {
         throw new Error(`${depBin} binary not found.`)
@@ -46,7 +45,7 @@ async function link({depBin, name}) {
     }
 
     // test ipfs installed correctly.
-    var result = cproc.spawnSync(localBin, ['-V'])
+    const result = cproc.spawnSync(localBin, ['-V'])
     if (result.error) {
         throw new Error(`${name} binary failed: ${result.error}`)
     }
@@ -60,7 +59,7 @@ async function link({depBin, name}) {
 
 async function install({os, arch, version, installPath}) {
     const url = repoPath({os, arch, version});
-    installPath = installPath ?? process.cwd();
+    installPath = installPath ?? path.join(__dirname, '..');
 
     const resp = await fetch(url);
 
@@ -70,29 +69,39 @@ async function install({os, arch, version, installPath}) {
     }
     const downloadStream = Readable.fromWeb(resp.body);
     const binPath = path.join(installPath, 'golem-requestor');
+    console.log('extracting into: ', binPath);
     if (!fs.existsSync(binPath)) {
         fs.mkdirSync(binPath);
     }
 
-    if (url.endsWith('.zip')) {
-        await downloadStream.pipe(unzip.Extract({path: binPath}));
-    } else {
-        await downloadStream.pipe(gunzip()).pipe(tar.extract(binPath, {strip: 1}));
+    await new Promise((resolve, reject) => {
+        if (url.endsWith('.zip')) {
+            downloadStream.pipe(unzip.Extract({path: binPath})
+                .on('close', resolve)
+                .on('error', reject));
+        } else {
+            downloadStream.pipe(gunzip()).pipe(tar.extract(binPath, {strip: 1})
+                .on('finish', resolve)
+                .on('error', reject));
+        }
+    });
+
+    if (!isWin) {
+        await link({binPath, name: 'yagna'});
+        await link({binPath, name: 'gftp'});
     }
-    await link({depBin: path.join(binPath, 'yagna'), name: 'yagna'});
-    await link({depBin: path.join(binPath, 'gftp'), name: 'gftp'});
 }
 
 
 function cleanVer(version) {
-    const m = /-[0-9]+/;
+    const m = /-([0-9]+)/.exec(version);
     if (m) {
         return version.substring(0, m.index);
     }
     return version;
 }
 
-install({os: process.platform, arch: process.arch, version: info.version}).catch(err => {
+install({os: process.platform, arch: process.arch, version: cleanVer(info.version)}).catch(err => {
     console.error(err);
     process.exit(1);
 });
