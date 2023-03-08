@@ -65,7 +65,7 @@ async function install({os, arch, version, installPath}) {
 
     console.log('response', resp.status, resp.statusText, 'url=', url);
     if (!resp.ok) {
-        return false;
+        throw new Error(`unable to download "${url}", response ${resp.status} ${resp.statusText}`);
     }
     const downloadStream = Readable.fromWeb(resp.body);
     const binPath = path.join(installPath, 'golem-requestor');
@@ -101,7 +101,17 @@ function cleanVer(version) {
     return version;
 }
 
-install({os: process.platform, arch: process.arch, version: cleanVer(info.version)}).catch(err => {
+function platform() {
+    switch (process.platform) {
+        case "win32":
+            return "windows"
+        case "darwin":
+            return "osx";
+    }
+    return process.platform;
+}
+
+install({os: platform(), arch: process.arch, version: cleanVer(info.version)}).catch(err => {
     console.error(err);
     process.exit(1);
 });
