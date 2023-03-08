@@ -1,0 +1,42 @@
+{
+  "name": "@golem-sdk/yagna",
+  "version": "0.12.0",
+  "description": "",
+  "main": "src/index.mjs",
+  "scripts": {
+    "postinstall": "node src/post-install.mjs",
+    "restore-bin": "git reset -- bin/ipfs bin/gftp && git checkout -- bin/yagna bin/gftp"
+  },
+  "bin": {
+    "yagna": "bin/yagna",
+    "gftp": "bin/gftp"
+  },
+  "pre-commit": "restore-bin",
+  "files": [
+    "bin",
+    "dist",
+    "src",
+    "test",
+    "LICENSE",
+    "package.json",
+    "README.md",
+    "tsconfig.json"
+  ],
+  "author": "",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "cachedir": "^2.3.0",
+    "got": "^11.7.0",
+    "gunzip-maybe": "^1.4.2",
+    "hasha": "^5.2.2",
+    "pkg-conf": "^3.1.0",
+    "tar-fs": "^2.1.0",
+    "unzip-stream": "^0.3.0"
+  },
+  "engines": {
+    "node": ">=18.13.0"
+  },
+  "devDependencies": {
+    "pre-commit": "^1.2.2"
+  }
+}
